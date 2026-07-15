@@ -1,0 +1,16 @@
+{
+  "name": "telegram-grafana-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot that posts Grafana panel renders per-group on demand",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-telegram-bot-api": "^0.66.0"
+  }
+}
