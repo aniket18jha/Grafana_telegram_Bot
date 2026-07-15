@@ -7,7 +7,7 @@ process.env.NTBA_FIX_350 = '1';
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const { fetchPanelImage } = require('./lib/grafana');
-const { getPanelForChat, setPanelForChat, listAll } = require('./lib/panelStore');
+const { getConfigForChat, setSinglePanelForChat, addPlanForChat, removePlanForChat, listAll } = require('./lib/panelStore');
 
 const {
   TELEGRAM_BOT_TOKEN,
@@ -44,8 +44,7 @@ const TIME_RANGES = [
   { label: '12h', from: 'now-12h' },
   { label: '24h', from: 'now-24h' },
   { label: '7d', from: 'now-7d' },
-  { label: '1Month', from: 'now-1M' },
-  { label: '6Months', from: 'now-6M' }
+  { label: 'Custom…', from: 'custom' },
 ];
 
 // Tracks users who were asked to type a custom range, so we know to
@@ -62,6 +61,16 @@ function rangeKeyboard(panelId) {
   // split into rows of 3 buttons
   const rows = [];
   for (let i = 0; i < row.length; i += 3) rows.push(row.slice(i, i + 3));
+  return { reply_markup: { inline_keyboard: rows } };
+}
+
+function locationKeyboard(plans) {
+  const buttons = plans.map((plan) => ({
+    text: plan.name,
+    callback_data: `loc:${plan.panelId}`,
+  }));
+  const rows = [];
+  for (let i = 0; i < buttons.length; i += 2) rows.push(buttons.slice(i, i + 2));
   return { reply_markup: { inline_keyboard: rows } };
 }
 
@@ -110,40 +119,65 @@ function parseCustomRangeText(text) {
 // ---- "graph" trigger (case-insensitive, matches whole message, with or without leading slash) ----
 bot.onText(/^\/?graph$/i, async (msg) => {
   const chatId = msg.chat.id;
-  const config = getPanelForChat(chatId);
+  const config = getConfigForChat(chatId);
 
   if (!config) {
     return bot.sendMessage(
       chatId,
-      `This group isn't linked to a Grafana panel yet.\nChat ID: ${chatId}\nAsk an admin to run /setpanel <panelId> in this group.`
+      `This group isn't linked to a Grafana panel yet.\nChat ID: ${chatId}\nAsk an admin to run /setpanel <panelId>, or /addplan <panelId> <location name> for multiple locations.`
     );
   }
 
-  await bot.sendMessage(chatId, `Pick a time range for "${config.label || 'the graph'}":`, rangeKeyboard(config.panelId));
+  if (config.plans.length > 1) {
+    return bot.sendMessage(
+      chatId,
+      `Pick a location for "${config.label || 'this group'}":`,
+      locationKeyboard(config.plans)
+    );
+  }
+
+  const plan = config.plans[0];
+  await bot.sendMessage(chatId, `Pick a time range for "${plan.name}":`, rangeKeyboard(plan.panelId));
 });
 
 // ---- Button press handler ----
 bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
-  const [, panelIdStr, rangeToken] = query.data.split(':');
-  const panelId = Number(panelIdStr);
+  const parts = query.data.split(':');
+  const kind = parts[0];
 
   await bot.answerCallbackQuery(query.id).catch(() => {});
 
-  if (rangeToken === 'custom') {
-    pendingCustomRange.set(`${chatId}:${userId}`, {
-      panelId,
-      expiresAt: Date.now() + CUSTOM_RANGE_TTL_MS,
-    });
+  if (kind === 'loc') {
+    const panelId = Number(parts[1]);
+    const config = getConfigForChat(chatId);
+    const plan = config?.plans.find((p) => p.panelId === panelId);
     return bot.sendMessage(
       chatId,
-      'Reply with a custom range, e.g. "2h", "45m", "3d" (within the next 2 minutes).'
+      `Pick a time range for "${plan?.name || 'that location'}":`,
+      rangeKeyboard(panelId)
     );
   }
 
-  const statusMsg = await bot.sendMessage(chatId, 'Fetching graph…');
-  await sendPanelImage(chatId, panelId, rangeToken, 'now', statusMsg.message_id);
+  if (kind === 'range') {
+    const panelId = Number(parts[1]);
+    const rangeToken = parts[2];
+
+    if (rangeToken === 'custom') {
+      pendingCustomRange.set(`${chatId}:${userId}`, {
+        panelId,
+        expiresAt: Date.now() + CUSTOM_RANGE_TTL_MS,
+      });
+      return bot.sendMessage(
+        chatId,
+        'Reply with a custom range, e.g. "2h", "45m", "3d" (within the next 2 minutes).'
+      );
+    }
+
+    const statusMsg = await bot.sendMessage(chatId, 'Fetching graph…');
+    return sendPanelImage(chatId, panelId, rangeToken, 'now', statusMsg.message_id);
+  }
 });
 
 // ---- Plain text listener: catches custom range replies + admin commands ----
@@ -179,8 +213,36 @@ bot.onText(/^\/setpanel (\d+)$/, async (msg, match) => {
   }
   const panelId = match[1];
   const label = msg.chat.title || `Chat ${chatId}`;
-  setPanelForChat(chatId, panelId, label);
-  bot.sendMessage(chatId, `Linked this group to panelId ${panelId}.`);
+  setSinglePanelForChat(chatId, panelId, label);
+  bot.sendMessage(chatId, `Linked this group to panelId ${panelId} (single plan). Use /addplan to add more locations.`);
+});
+
+bot.onText(/^\/addplan (\d+) (.+)$/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  if (!isAdmin(msg.from.id)) {
+    return bot.sendMessage(chatId, 'Only an admin can configure this.');
+  }
+  const panelId = match[1];
+  const planName = match[2].trim();
+  const label = msg.chat.title || `Chat ${chatId}`;
+  const updated = addPlanForChat(chatId, panelId, planName, label);
+  bot.sendMessage(
+    chatId,
+    `Added/updated location "${planName}" -> panelId ${panelId}. This group now has ${updated.plans.length} location(s).`
+  );
+});
+
+bot.onText(/^\/removeplan (\d+)$/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  if (!isAdmin(msg.from.id)) {
+    return bot.sendMessage(chatId, 'Only an admin can configure this.');
+  }
+  const panelId = match[1];
+  const updated = removePlanForChat(chatId, panelId);
+  if (!updated) {
+    return bot.sendMessage(chatId, 'This group has no plans configured yet.');
+  }
+  bot.sendMessage(chatId, `Removed panelId ${panelId}. This group now has ${updated.plans.length} location(s).`);
 });
 
 bot.onText(/^\/mychatid$/, (msg) => {
@@ -192,10 +254,21 @@ bot.onText(/^\/listpanels$/, (msg) => {
     return bot.sendMessage(msg.chat.id, 'Only an admin can view this.');
   }
   const all = listAll();
-  const lines = Object.entries(all).map(
-    ([id, cfg]) => `${id} -> panelId ${cfg.panelId} (${cfg.label || 'no label'})`
-  );
+  const lines = Object.entries(all).map(([id, cfg]) => {
+    const plans = cfg.plans.map((p) => `${p.name} (panelId ${p.panelId})`).join(', ');
+    return `${id} [${cfg.label || 'no label'}] -> ${plans || 'no plans'}`;
+  });
   bot.sendMessage(msg.chat.id, lines.join('\n') || 'No panels configured yet.');
+});
+
+bot.onText(/^\/listplans$/, (msg) => {
+  const chatId = msg.chat.id;
+  const config = getConfigForChat(chatId);
+  if (!config) {
+    return bot.sendMessage(chatId, 'This group has no plans configured yet.');
+  }
+  const lines = config.plans.map((p) => `${p.name} -> panelId ${p.panelId}`);
+  bot.sendMessage(chatId, lines.join('\n'));
 });
 
 // ---- Express app (used for webhook mode + health check) ----

@@ -1,4 +1,16 @@
 {
-  "-5566037327": { "panelId": 75, "label": "Client A - All Links" },
-  "-1002222222222": { "panelId": 82, "label": "Client B - All Links" }
+  "-1001111111111": {
+    "label": "Client A - single plan",
+    "plans": [
+      { "name": "Default", "panelId": 75 }
+    ]
+  },
+  "-1002222222222": {
+    "label": "Client B - multiple locations",
+    "plans": [
+      { "name": "Mumbai", "panelId": 82 },
+      { "name": "Delhi", "panelId": 83 },
+      { "name": "Bangalore", "panelId": 84 }
+    ]
+  }
 }

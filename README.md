@@ -31,25 +31,53 @@ Fill in `.env`:
   by messaging **@userinfobot**)
 - Leave `WEBHOOK_URL` empty to test locally with polling.
 
-## 4. Map each group to its panelId
+## 4. Map each group to its panelId (or panelIds, for multi-location groups)
 You have two options:
 
 **Option A — edit the JSON directly** (`config/chatPanelMap.json`):
 ```json
 {
-  "-1001111111111": { "panelId": 75, "label": "Client A - All Links" },
-  "-1002222222222": { "panelId": 82, "label": "Client B - All Links" }
+  "-1001111111111": {
+    "label": "Client A - single plan",
+    "plans": [
+      { "name": "Default", "panelId": 75 }
+    ]
+  },
+  "-1002222222222": {
+    "label": "Client B - multiple locations",
+    "plans": [
+      { "name": "Mumbai", "panelId": 82 },
+      { "name": "Delhi", "panelId": 83 },
+      { "name": "Bangalore", "panelId": 84 }
+    ]
+  }
 }
 ```
+A group with exactly one plan skips straight to the time-range buttons when someone
+types `graph`. A group with more than one plan is first asked to pick a location,
+then shown the time-range buttons for that location's panel.
+
 To find a chat's ID: add the bot to the group, send `/mychatid` in that group, the
 bot replies with the numeric ID (group IDs are negative numbers).
 
-**Option B — use the built-in admin command** (recommended, no redeploy needed):
+**Option B — use the built-in admin commands** (recommended, no redeploy needed):
 In each group, an admin (whose Telegram user ID is in `ADMIN_USER_IDS`) sends:
-```
-/setpanel 75
-```
-The bot saves that group's chat ID → panelId 75 into `chatPanelMap.json` automatically.
+
+- For a simple group with just one graph:
+  ```
+  /setpanel 75
+  ```
+- For a group with multiple plans/locations, call this once per location:
+  ```
+  /addplan 82 Mumbai
+  /addplan 83 Delhi
+  /addplan 84 Bangalore
+  ```
+  (`/addplan` can also be used to add a second location to a group that was
+  originally set up with `/setpanel` — it appends rather than replacing.)
+- To remove a location: `/removeplan <panelId>`
+- To see a group's own configured locations: `/listplans`
+- To see every group's config (admin-only): `/listpanels`
 
 ## 5. Run it
 ```bash
