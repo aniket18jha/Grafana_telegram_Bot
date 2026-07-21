@@ -44,7 +44,8 @@ const TIME_RANGES = [
   { label: '12h', from: 'now-12h' },
   { label: '24h', from: 'now-24h' },
   { label: '7d', from: 'now-7d' },
-  { label: 'Custom…', from: 'custom' },
+  { label: '1Month', from: 'now-1M' },
+  { label: '6Months', from: 'now-6M' }
 ];
 
 // Tracks users who were asked to type a custom range, so we know to
@@ -72,6 +73,20 @@ function locationKeyboard(plans) {
   const rows = [];
   for (let i = 0; i < buttons.length; i += 2) rows.push(buttons.slice(i, i + 2));
   return { reply_markup: { inline_keyboard: rows } };
+}
+
+// Removes the inline keyboard from a message so its buttons stop working —
+// used right after a button is tapped, so old "graph"/location prompts can't
+// be re-clicked to re-fetch; the person has to type /graph again for a fresh one.
+async function disableKeyboard(chatId, messageId) {
+  try {
+    await bot.editMessageReplyMarkup(
+      { inline_keyboard: [] },
+      { chat_id: chatId, message_id: messageId }
+    );
+  } catch (err) {
+    // Message may already have no keyboard, or be too old to edit — safe to ignore.
+  }
 }
 
 async function sendPanelImage(chatId, panelId, from, to, statusMsgId) {
@@ -148,6 +163,7 @@ bot.on('callback_query', async (query) => {
   const kind = parts[0];
 
   await bot.answerCallbackQuery(query.id).catch(() => {});
+  await disableKeyboard(chatId, query.message.message_id);
 
   if (kind === 'loc') {
     const panelId = Number(parts[1]);
