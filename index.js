@@ -5,9 +5,11 @@ require('dotenv').config();
 process.env.NTBA_FIX_350 = '1';
 
 const express = require('express');
+const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 const { fetchPanelImage } = require('./lib/grafana');
 const { getConfigForChat, setSinglePanelForChat, addPlanForChat, removePlanForChat, listAll } = require('./lib/panelStore');
+const adminApi = require('./lib/adminApi');
 
 const {
   TELEGRAM_BOT_TOKEN,
@@ -287,11 +289,15 @@ bot.onText(/^\/listplans$/, (msg) => {
   bot.sendMessage(chatId, lines.join('\n'));
 });
 
-// ---- Express app (used for webhook mode + health check) ----
+// ---- Express app (used for webhook mode, admin dashboard, and health check) ----
 const app = express();
 app.use(express.json());
 
 app.get('/', (req, res) => res.send('Telegram-Grafana bot is running.'));
+
+// Admin dashboard: static UI + protected API
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api', adminApi);
 
 if (useWebhook) {
   const webhookPath = `/telegram-webhook/${TELEGRAM_BOT_TOKEN}`;

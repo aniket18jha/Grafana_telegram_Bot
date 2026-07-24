@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Panel Mapping — Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: #2a3140;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #f46800;
+    --accent-dim: #f4680033;
+    --good: #3fb950;
+    --bad: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .accent-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: 8px;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 28px 32px 80px;
+  }
+
+  /* ---- Gate ---- */
+  #gate {
+    max-width: 360px;
+    margin: 15vh auto;
+    text-align: center;
+  }
+  #gate h2 { font-size: 16px; margin-bottom: 4px; }
+  #gate p { color: var(--text-dim); font-size: 13px; margin-bottom: 20px; }
+  #gate input {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  #gate input:focus { outline: none; border-color: var(--accent); }
+  #gate .err { color: var(--bad); font-size: 12px; min-height: 16px; margin-top: 6px; }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    transition: opacity .15s;
+  }
+  button:hover { opacity: 0.85; }
+  button:active { opacity: 0.7; }
+  .btn-primary { background: var(--accent); color: #1a0e00; }
+  .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-danger { background: transparent; color: var(--bad); border: 1px solid #f8514933; }
+  .btn-small { padding: 6px 11px; font-size: 12px; }
+
+  /* ---- Toolbar ---- */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar .stats { color: var(--text-dim); font-size: 13px; }
+  .toolbar .stats b { color: var(--text); }
+
+  /* ---- Card ---- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .card-head-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .label-input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 4px 2px;
+    border-bottom: 1px solid transparent;
+    min-width: 160px;
+  }
+  .label-input:focus { outline: none; border-bottom: 1px solid var(--accent); }
+  .chat-id-chip {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+  .badge {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .badge.single { background: #3fb95022; color: var(--good); }
+  .badge.multi { background: var(--accent-dim); color: var(--accent); }
+
+  .plans {
+    border-top: 1px solid var(--border);
+    padding: 6px 18px 14px;
+  }
+  .plan-row {
+    display: grid;
+    grid-template-columns: 1fr 130px 32px;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 0;
+  }
+  .plan-row input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 7px 10px;
+    font-size: 13px;
+    width: 100%;
+  }
+  .plan-row input.panelid { font-family: 'JetBrains Mono', monospace; }
+  .plan-row input:focus { outline: none; border-color: var(--accent); }
+  .plan-row .remove-plan {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 6px;
+  }
+  .plan-row .remove-plan:hover { color: var(--bad); background: #f8514918; }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 18px 16px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .save-status {
+    font-size: 12px;
+    color: var(--text-dim);
+    align-self: center;
+    margin-left: auto;
+  }
+  .save-status.ok { color: var(--good); }
+  .save-status.err { color: var(--bad); }
+
+  .add-chat-card {
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .add-chat-card input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .add-chat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .add-chat-grid .chatid { font-family: 'JetBrains Mono', monospace; }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 40px 0;
+  }
+
+  ::selection { background: var(--accent-dim); }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h2>Control Room</h2>
+  <p>Enter the dashboard password to manage panel mappings.</p>
+  <input id="gate-input" type="password" placeholder="Password" autofocus />
+  <button class="btn-primary" style="width:100%" onclick="attemptLogin()">Enter</button>
+  <div class="err" id="gate-err"></div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div>
+      <h1><span class="accent-dot"></span>Panel Mapping — Control Room</h1>
+      <div class="sub">Every change here applies instantly — no restart needed.</div>
+    </div>
+    <button class="btn-ghost btn-small" onclick="logout()">Log out</button>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="stats"><b id="chat-count">0</b> groups configured</div>
+      <button class="btn-primary" onclick="toggleAddForm()">+ Add group</button>
+    </div>
+
+    <div id="add-form" style="display:none; margin-bottom: 18px;">
+      <div class="add-chat-card">
+        <div class="add-chat-grid">
+          <input class="chatid" id="new-chat-id" placeholder="Chat ID, e.g. -1001234567890" />
+          <input id="new-chat-label" placeholder="Group label, e.g. Client C" />
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-primary btn-small" onclick="createChat()">Create group</button>
+          <button class="btn-ghost btn-small" onclick="toggleAddForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cards"></div>
+    <div id="empty-msg" class="empty" style="display:none">No groups configured yet. Add one above, or run /mychatid in a Telegram group to get its ID.</div>
+  </main>
+</div>
+
+<script>
+  const API = '/api';
+  let password = localStorage.getItem('dashboard_password') || '';
+  let config = {};
+
+  function headers() {
+    return { 'Content-Type': 'application/json', 'x-dashboard-password': password };
+  }
+
+  async function attemptLogin() {
+    const input = document.getElementById('gate-input');
+    password = input.value;
+    const ok = await loadConfig();
+    if (ok) {
+      localStorage.setItem('dashboard_password', password);
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+    } else {
+      document.getElementById('gate-err').textContent = 'Incorrect password.';
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('dashboard_password');
+    location.reload();
+  }
+
+  async function loadConfig() {
+    try {
+      const res = await fetch(`${API}/config`, { headers: headers() });
+      if (!res.ok) return false;
+      config = await res.json();
+      render();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function render() {
+    const entries = Object.entries(config);
+    document.getElementById('chat-count').textContent = entries.length;
+    const container = document.getElementById('cards');
+    const emptyMsg = document.getElementById('empty-msg');
+    container.innerHTML = '';
+    emptyMsg.style.display = entries.length === 0 ? 'block' : 'none';
+
+    for (const [chatId, cfg] of entries) {
+      container.appendChild(buildCard(chatId, cfg));
+    }
+  }
+
+  function buildCard(chatId, cfg) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.chatId = chatId;
+
+    const isMulti = cfg.plans.length > 1;
+
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="card-head-left">
+          <input class="label-input" value="${escapeAttr(cfg.label || '')}" placeholder="Group label" data-role="label" />
+          <span class="chat-id-chip mono">${escapeHtml(chatId)}</span>
+          <span class="badge ${isMulti ? 'multi' : 'single'}">${cfg.plans.length} location${cfg.plans.length === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+      <div class="plans" data-role="plans"></div>
+      <div class="card-actions">
+        <button class="btn-ghost btn-small" data-role="add-plan">+ Add location</button>
+        <button class="btn-primary btn-small" data-role="save">Save changes</button>
+        <button class="btn-danger btn-small" data-role="delete">Delete group</button>
+        <span class="save-status" data-role="status"></span>
+      </div>
+    `;
+
+    const plansContainer = card.querySelector('[data-role="plans"]');
+    cfg.plans.forEach((plan) => plansContainer.appendChild(buildPlanRow(plan.name, plan.panelId)));
+    if (cfg.plans.length === 0) plansContainer.appendChild(buildPlanRow('', ''));
+
+    card.querySelector('[data-role="add-plan"]').addEventListener('click', () => {
+      plansContainer.appendChild(buildPlanRow('', ''));
+    });
+    card.querySelector('[data-role="save"]').addEventListener('click', () => saveCard(card));
+    card.querySelector('[data-role="delete"]').addEventListener('click', () => deleteCard(card));
+
+    return card;
+  }
+
+  function buildPlanRow(name, panelId) {
+    const row = document.createElement('div');
+    row.className = 'plan-row';
+    row.innerHTML = `
+      <input placeholder="Location name, e.g. Mumbai" value="${escapeAttr(name)}" data-role="plan-name" />
+      <input class="panelid" placeholder="Panel ID" value="${escapeAttr(panelId === undefined || panelId === null ? '' : panelId)}" data-role="plan-panelid" />
+      <button class="remove-plan" title="Remove location">✕</button>
+    `;
+    row.querySelector('.remove-plan').addEventListener('click', () => row.remove());
+    return row;
+  }
+
+  function toggleAddForm() {
+    const el = document.getElementById('add-form');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+
+  async function createChat() {
+    const chatId = document.getElementById('new-chat-id').value.trim();
+    const label = document.getElementById('new-chat-label').value.trim();
+    if (!chatId) return alert('Chat ID is required.');
+    const res = await fetch(`${API}/chats/${encodeURIComponent(chatId)}`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ label, plans: [] }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return alert(body.error || 'Could not create group.');
+    }
+    document.getElementById('new-chat-id').value = '';
+    document.getElementById('new-chat-label').value = '';
+    toggleAddForm();
+    await loadConfig();
+  }
+
+  async function saveCard(card) {
+    const chatId = card.dataset.chatId;
+    const label = card.querySelector('[data-role="label"]').value.trim();
+    const plans = [...card.querySelectorAll('.plan-row')].map((row) => ({
+      name: row.querySelector('[data-role="plan-name"]').value.trim(),
+      panelId: row.querySelector('[data-role="plan-panelid"]').value.trim(),
+    })).filter((p) => p.name || p.panelId);
+
+    const status = card.querySelector('[data-role="status"]');
+    status.textContent = 'Saving…';
+    status.className = 'save-status';
+
+    const res = await fetch(`${API}/chats/${encodeURIComponent(chatId)}`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ label, plans }),
+    });
+
+    if (res.ok) {
+      status.textContent = 'Saved ✓';
+      status.className = 'save-status ok';
+      await loadConfig();
+    } else {
+      const body = await res.json().catch(() => ({}));
+      status.textContent = body.error || 'Save failed';
+      status.className = 'save-status err';
+    }
+  }
+
+  async function deleteCard(card) {
+    const chatId = card.dataset.chatId;
+    if (!confirm(`Delete this group (${chatId})? This cannot be undone.`)) return;
+    const res = await fetch(`${API}/chats/${encodeURIComponent(chatId)}`, {
+      method: 'DELETE',
+      headers: headers(),
+    });
+    if (res.ok) await loadConfig();
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function escapeAttr(str) { return escapeHtml(str); }
+
+  // Auto-login if a password is already stored
+  if (password) {
+    loadConfig().then((ok) => {
+      if (ok) {
+        document.getElementById('gate').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+      }
+    });
+  }
+
+  document.getElementById('gate-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') attemptLogin();
+  });
+</script>
+</body>
+</html>
